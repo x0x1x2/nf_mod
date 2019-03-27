@@ -3,12 +3,14 @@ Netfilter kernel module
 
 
 General:
+
 This kernel module will block outgoing http request:
 1) nf_mod.c : filter only TCP packets with payload.
 2) http_parser.c : parse the TCP packet payload for http request line (assuming version 1.1)
 
 
 Links
+
 https://medium.com/@GoldenOak/linux-kernel-communication-part-1-netfilter-hooks-15c07a5a5c4e
 
 https://jnc0x24dd099bb870.github.io/Network/TCP4/Sock3/index.html
