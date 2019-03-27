@@ -7,6 +7,19 @@
 #include <net/ip.h>
 
 
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("YS");
+MODULE_DESCRIPTION("NF ex");
+MODULE_VERSION("0.1"); 
+
+/*  
+ *  This module uses /dev/testdevice.  The MODULE_SUPPORTED_DEVICE macro might
+ *  be used in the future to help automatic configuration of modules, but is 
+ *  currently unused other than for documentation purposes.
+ */
+MODULE_SUPPORTED_DEVICE("testdevice");
+
+
 unsigned int  my_http_helper (unsigned char *pdata, int data_len);
 
 
@@ -26,25 +39,11 @@ unsigned int hook_func(
 
         if (iph && iph->protocol && (iph->protocol == IPPROTO_TCP)) {
             tcph = (struct tcphdr *)((__u32 *)iph + iph->ihl);
-
-            if (tcph->source) {
-                if ((tcph->urg && tcph->fin && tcph->psh) && (!tcph->ack && !tcph->syn && !tcph->rst)) {
-                    printk(KERN_DEBUG "TCP Xmas Scan Detected!\n");
-                } else if (!tcph->urg && !tcph->fin && !tcph->psh && !tcph->ack && !tcph->syn && !tcph->rst) {
-                    printk(KERN_DEBUG "TCP NULL Scan Detected!\n");
-                } else if ((tcph->fin) && (!tcph->urg &&!tcph->ack && !tcph->syn && !tcph->rst && !tcph->psh)) {
-                    printk(KERN_DEBUG "TCP FIN Scan Detected!\n");
-                } else if ((tcph->syn) && (!tcph->fin && !tcph->psh && !tcph->urg && !tcph->ack && !tcph->rst)) {
-                    printk(KERN_DEBUG "TCP SYN Scan Detected!\n");
-                }
-            }
             
             if(skb_linearize(skb)<0){
 		printk("[YS] Not Linearizable \n");
 		return NF_ACCEPT;	
 	    }
-            
-            
            
             data_len = ntohs(iph->tot_len)-ip_hdrlen(skb)-(tcph->doff * 4);
             pdata = (unsigned char *)tcph + (tcph->doff * 4);
