@@ -1,69 +1,102 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/netfilter.h>
 
 
-unsigned int  my_http_helper (unsigned char *pdata, int data_len)
+
+/*
+ * HTTP method with space separator at tail
+ */
+#define METHOD_W_SP(NAME) #NAME " "
+
+static const char * http_method[] = 
 {
-  const char * Method[] = 
-  {
-    "OPTIONS "  ,             
-    "GET "       ,            
-    "HEAD "     ,             
-    "POST "     ,            
-    "PUT "      ,             
-    "DELETE "   ,              
-    "TRACE "    ,              
-    "CONNECT "   ,
-    /*---*/
-    NULL
-  };     
-  const char http_ver[]=" HTTP/";
-  int i,req;
+  METHOD_W_SP(OPTIONS) ,             
+  METHOD_W_SP(GET),            
+  METHOD_W_SP(HEAD),             
+  METHOD_W_SP(POST),            
+  METHOD_W_SP(PUT),             
+  METHOD_W_SP(DELETE),              
+  METHOD_W_SP(TRACE),              
+  METHOD_W_SP(CONNECT),
+  /*---*/
+  NULL
+};
+
+/* 
+ * HTTP-Version len: 
+ */
+#define HTTP_VER_LEN_W_SP (9)  
+/*
+ *  HTTP-Version with heading space separator 
+ */
+static const char http_ver[]=" HTTP/1.1";
+ 
+
+/*
+ * Parser of http request line:
+ * Request-Line = Method SP Request-URI SP HTTP-Version CRLF
+ */ 
+int my_http_helper(unsigned char *pdata, int data_len)
+{
+
+  
+  int i,found;
   int tmp_len;
-  int len = sizeof(Method)/sizeof(char*);
-  unsigned char *ptmp;
+  int len;
+ 
    
   /* look for method */
-  for(i=0, req=-1; i < len &&  Method[i]!= NULL; i++) 
+  len = sizeof(http_method)/sizeof(char*);
+  for(i=0, found=-1; i < len &&  http_method[i]!= NULL; i++) 
   {
-    tmp_len = strlen(Method[i]);
+    tmp_len = strlen(http_method[i]);
     
-    if(data_len > tmp_len && strncmp(pdata,Method[i],tmp_len)==0 )
+    if(data_len > tmp_len && strncmp(pdata,http_method[i],tmp_len)==0 )
     {
-      printk("[YS] found method %s\n",Method[i]);
-      req=i;
+      printk("[YS] found method %s\n",http_method[i]);
+      found=i;
       break;
     }
   }
   
-  if(req == -1)
+  if(found == -1)
   {
-    printk("[YS] http method not found \n");
-    return NF_ACCEPT;
+    printk("[YS] error http method not found \n");
+    return -1;
   }
-  /*look for http- keyword*/
-  do{
-    ptmp = (unsigned char*)memchr(pdata+tmp_len,(int)http_ver[0],data_len-tmp_len );
+
+  /*look for http-version */
+  len = strlen(http_ver);
+  while(tmp_len + HTTP_VER_LEN_W_SP < data_len)
+  {
     
-    if(ptmp == NULL) 
+    if(*(pdata + tmp_len) == http_ver[0])
     {
-      //printk("[YS] http version not found \n");
-      return NF_ACCEPT;
-    }
-    printk("[YS] search http %p %c%c%c%c\n",ptmp,ptmp[0],ptmp[1],ptmp[2],ptmp[3]);
-    // HTTP-version  = HTTP-name "/" DIGIT "." DIGIT
-    if(strncmp(ptmp,http_ver,strlen(http_ver))!=0) 
-    {
-      tmp_len = ptmp-pdata+1;
-    }
-    else
-    {
-      printk("[YS] http method \n");
-      break;
-    }
       
-  }while( data_len > tmp_len);
+       // HTTP-version  = HTTP-name "/" DIGIT "." DIGIT
+      if(strncmp(pdata + tmp_len, http_ver, len)==0)
+      {
+	printk("[YS] http version found %c\n",*(pdata+tmp_len+HTTP_VER_LEN_W_SP-1));
+
+	tmp_len += HTTP_VER_LEN_W_SP;
+	
+	break;
+      }      
+    }
+    else if(*(pdata + tmp_len) == '\r' || *(pdata + tmp_len) == '\n')
+    {
+      printk("[YS] error CR or LF inside http request \n");
+      return -1;
+    }
+    
+    ++tmp_len;
+  }
+  /* search for CRLF \r\n  */
+  if(tmp_len + 2 < data_len &&  *(pdata + tmp_len  ) == '\r' && *(pdata + tmp_len +  1) == '\n')
+  {
+    printk("[YS] found http request \n");
+    return 0;
+  }
   
-  return NF_ACCEPT;
+  return -1;
 }

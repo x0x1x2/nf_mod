@@ -20,7 +20,7 @@ MODULE_VERSION("0.1");
 MODULE_SUPPORTED_DEVICE("testdevice");
 
 
-unsigned int  my_http_helper (unsigned char *pdata, int data_len);
+int my_http_helper(unsigned char *pdata, int data_len);
 
 
 static struct nf_hook_ops nfho;
@@ -44,13 +44,14 @@ unsigned int hook_func(
 		printk("[YS] Not Linearizable \n");
 		return NF_ACCEPT;	
 	    }
-           
+             // get the http data 
             data_len = ntohs(iph->tot_len)-ip_hdrlen(skb)-(tcph->doff * 4);
             pdata = (unsigned char *)tcph + (tcph->doff * 4);
 	    if (data_len > 0 )
 	    {
 	      printk("[YS] len = %d \n",data_len);
-	      return my_http_helper(pdata, data_len); 
+	      if( my_http_helper(pdata, data_len) == 0)
+		return NF_DROP; 
 	    }
 	    
         }
